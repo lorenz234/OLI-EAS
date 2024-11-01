@@ -57,24 +57,24 @@ contract OwnerRecipientResolver is SchemaResolver {
     }
 
     function extractChainIdFromData(bytes memory data) internal pure returns (uint256) {
-        require(data.length >= 320, "Data too short"); // 10 * 32 bytes = 320 bytes
+        require(data.length >= 256, "Data too short"); // 8 * 32 bytes = 256 bytes
         
         // Extract the chain ID from position 10
         uint256 extractedValue;
         assembly {
-            extractedValue := mload(add(data, 320)) // Load the chain ID value from position 10 (10 * 32 bytes)
+            extractedValue := mload(add(data, 256)) // Load the chain ID value from position 8 (8 * 32 bytes)
         }
         
         return extractedValue;
     }
 
     function extractOwnableCheckFromData(bytes memory data) internal pure returns (bool) {
-        require(data.length >= 352, "Data too short");
+        require(data.length >= 288, "Data too short");
         
-        // Extract the OwnerCheck from position 11, but we're only interested in the last bit
+        // Extract the OwnerCheck from position 9, but we're only interested in the last bit
         uint256 extractedValue;
         assembly {
-            extractedValue := mload(add(data, 352)) // Load the first 96 bytes
+            extractedValue := mload(add(data, 288)) // Load the first x bytes
             extractedValue := and(extractedValue, 0x1) // Mask only the last bit
         }
         
