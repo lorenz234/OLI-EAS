@@ -9,10 +9,10 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * @title A schema resolver that checks whether the sender is the owner of the contract behind attestation.recipient.
  */
 contract OwnerRecipientResolver is SchemaResolver {
+
     constructor(IEAS eas) SchemaResolver(eas) {}
 
     function onAttest(Attestation calldata attestation, uint256 /*value*/) internal view override returns (bool) {
-        
         // Return false if the attestation.recipient field is empty (zero address)
         if (attestation.recipient == address(0)) {
             return false;
@@ -25,8 +25,6 @@ contract OwnerRecipientResolver is SchemaResolver {
         if (!ownableCheck) {
             return true;
         }
-
-        // Now that we know a OwnableCheck is True, we start with the check if the contract is owned by the sender
 
         // First we make sure the attestation.recipient is a contract, else return false
         if (attestation.recipient.code.length == 0) {
@@ -48,33 +46,32 @@ contract OwnerRecipientResolver is SchemaResolver {
         Ownable ownableContract = Ownable(attestation.recipient);
 
         try ownableContract.owner() returns (address owner) {
-            // If the sender is the owner of the contract, allow attestation
-            return attestation.attester == owner;
+            bool isOwner = attestation.attester == owner;
+            return isOwner;
         } catch {
-            // If the call to owner() fails, it means the contract is not Ownable by the sender
             return false;
         }
     }
 
     function extractChainIdFromData(bytes memory data) internal pure returns (uint256) {
-        require(data.length >= 256, "Data too short"); // 8 * 32 bytes = 256 bytes
+        require(data.length >= 32, "Data too short"); // Make sure we have enough data to read from position 3
         
-        // Extract the chain ID from position 10
+        // The chain ID is at the first 32-byte slot in the data
         uint256 extractedValue;
         assembly {
-            extractedValue := mload(add(data, 256)) // Load the chain ID value from position 8 (8 * 32 bytes)
+            extractedValue := mload(add(data, 32))
         }
         
         return extractedValue;
     }
 
     function extractOwnableCheckFromData(bytes memory data) internal pure returns (bool) {
-        require(data.length >= 288, "Data too short");
+        require(data.length >= 64, "Data too short");
         
-        // Extract the OwnerCheck from position 9, but we're only interested in the last bit
+        // Extract the OwnerCheck from position 2, but we're only interested in the last bit
         uint256 extractedValue;
         assembly {
-            extractedValue := mload(add(data, 288)) // Load the first x bytes
+            extractedValue := mload(add(data, 64)) // Load the first 64 bytes
             extractedValue := and(extractedValue, 0x1) // Mask only the last bit
         }
         
